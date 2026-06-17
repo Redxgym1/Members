@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RedX Gym</title>
+
+<style>
+body{margin:0;font-family: Arial, sans-serif;background:#0b0b0b;color:white;}
+.top{text-align:center;padding:10px;}.logo{font-size:24px;font-weight:bold;color:#ff3b3b;}
+.stats-bar {display: grid;grid-template-columns: repeat(4, 1fr);gap: 8px;width: 94%;margin: 5px auto 15px auto;text-align: center;}
+.stat-card {background: #161616;padding: 10px 5px;border-radius: 10px;border: 1px solid #222;}
+.stat-card.clickable {cursor: pointer;transition: background 0.2s;}
+.stat-card.clickable:hover {background: #222;}
+.stat-card div:first-child { font-size: 10px; color: #aaa; margin-bottom: 4px; }
+.stat-card div:last-child { font-size: 16px; font-weight: bold; }
+.searchWrap{position:relative;width:92%;margin:10px auto;}
+.search{width:100%;padding:15px;border-radius:12px;border:none;background:#1e1e1e;color:white;outline:none;box-sizing: border-box;}
+.clearSearch{position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:#aaa;}
+.grid, #attendanceContainer{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:10px;}
+#attendanceContainer {display: none;grid-template-columns: 1fr;padding-bottom: 40px;}
+.card{position: relative;padding:18px;border-radius:12px;background:#2a2a2a;text-align:center;font-weight:bold;cursor:pointer;word-break: break-word;-webkit-user-select: none;user-select: none;touch-action: manipulation;}
+.green{background:#1b5e20 !important;}.orange{background:#ef6c00 !important;}.red{background:#b71c1c !important;}
+.settings{position:fixed;top:10px;right:10px;font-size:24px;cursor:pointer;z-index: 101;padding: 5px 10px;}
+.menu{display:none;position:fixed;top:50px;right:10px;background:#111;border:1px solid #333;border-radius:10px;overflow:hidden;z-index: 101;}
+.menu div{padding:12px;cursor:pointer;border-bottom:1px solid #222;}.menu div:hover{background:#222;}
+.menu-overlay {display: none;position: fixed;top: 0;left: 0;width: 100%;height: 100%;z-index: 100;background: transparent;}
+.listItem{width:92%;margin:10px auto;padding:15px;border-radius:12px;background:#1c1c1c;display:flex;justify-content:space-between;align-items:center;box-sizing: border-box;}
+.greenText{color:#4caf50;}.orangeText{color:#ff9800;}.redText{color:#f44336;}
+.dateHeader {width: 92%;margin: 20px auto 5px auto;border-bottom: 1px solid #444;padding-bottom: 5px;color: #aaa;font-size: 18px;}
+.return-key-btn {display: block;width: 100%;margin-top: 8px;background: #007bff;color: white;border: none;padding: 6px;font-size: 11px;font-weight: bold;border-radius: 6px;cursor: pointer;}
+.card-options {position: absolute;top: 5px;right: 8px;font-size: 16px;color: #888;padding: 2px 5px;}
+</style>
+</head>
+
+<body>
+
+<div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+<div class="settings" id="settingsBtn" onclick="toggleMenu(event)">⋮</div>
+
+<div class="top"><div class="logo">REDX GYM</div></div>
+
+<div class="stats-bar" id="statsBar">
+    <div class="stat-card clickable" onclick="goHomeTab()"><div>Home</div><div id="stat-all" style="color:#ffffff;">0</div></div>
+    <div class="stat-card clickable" onclick="filterByStatus('active_now')"><div>Active Now</div><div id="stat-active" style="color:#4caf50;">0</div></div>
+    <div class="stat-card clickable" onclick="filterByStatus('orange')"><div>Expire Soon</div><div id="stat-expiring" style="color:#ff9800;">0</div></div>
+    <div class="stat-card clickable" onclick="filterByStatus('red')"><div>Expired</div><div id="stat-expired" style="color:#f44336;">0</div></div>
+</div>
+
+<div class="searchWrap" id="searchWrap">
+    <input class="search" id="search" placeholder="Search member..." oninput="render()">
+    <div class="clearSearch" onclick="clearSearch()">✕</div>
+</div>
+
+<div class="grid" id="grid"></div>
+<div id="attendanceContainer"></div>
+
+<div class="menu" id="menu">
+    <div onclick="openPopup()">➕ Add Member</div>
+    <div onclick="showAttendance()">📋 Attendance History</div>
+    <div onclick="exportAttendance()">📥 Export History</div>
+    <div onclick="openResetConfirmPopup()">🔄 Reset Day & Save</div>
+    <div onclick="backHome()">🏠 Home</div>
+</div>
+
+<div id="popup" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; justify-content:center; align-items:center; z-index:200;">
+    <div style="background:#111; padding:20px; border-radius:12px; width:85%; max-width:400px;">
+        <h3 id="popupTitle">Add Member</h3>
+        <input id="name" placeholder="Member Name" style="width:100%;padding:12px;margin:6px 0;background:#222;color:white;border:none;border-radius:6px;box-sizing:border-box;">
+        <input id="date" type="date" style="width:100%;padding:12px;margin:6px 0;background:#222;color:white;border:none;border-radius:6px;box-sizing:border-box;">
+        <button id="popupButton" onclick="addMember()" style="width:100%;padding:12px;background:#ff3b3b;color:white;border:none;margin-top:10px;border-radius:6px;cursor:pointer;font-weight:bold;">Add</button>
+        <button onclick="closePopup()" style="width:100%;padding:12px;background:#444;color:white;border:none;margin-top:10px;border-radius:6px;cursor:pointer;">Cancel</button>
+    </div>
+</div>
+
+<div id="optionsPopup" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);justify-content:center;align-items:center;z-index:210;">
+    <div style="background:#111;padding:20px;border-radius:12px;width:85%;max-width:350px;text-align:center;">
+        <h3 id="optionsTitle" style="margin-top:0;color:#ff3b3b;">Member Options</h3>
+        <button onclick="editSelected()" style="width:100%;padding:12px;background:#ef6c00;color:white;border:none;margin-top:10px;border-radius:6px;cursor:pointer;font-weight:bold;font-size:16px;">✏️ Edit Member</button>
+        <button onclick="deleteSelected()" style="width:100%;padding:12px;background:#b71c1c;color:white;border:none;margin-top:10px;border-radius:6px;cursor:pointer;font-weight:bold;font-size:16px;">🗑️ Delete Member</button>
+        <button onclick="closeOptionsPopup()" style="width:100%;padding:12px;background:#444;color:white;border:none;margin-top:15px;border-radius:6px;cursor:pointer;">Cancel</button>
+    </div>
+</div>
+
+<div id="lockerPopup" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);justify-content:center;align-items:center;z-index:300;">
+    <div style="background:#111;padding:20px;border-radius:12px;width:80%;max-width:300px;text-align:center;border:1px solid #333;">
+        <h3 id="lockerTitle" style="margin-top:0;color:#007bff;">Locker Number</h3>
+        <input id="lockerInput" type="text" placeholder="Enter number..." style="width:100%;padding:12px;margin:10px 0;background:#222;color:white;border:1px solid #444;border-radius:6px;box-sizing:border-box;text-align:center;font-size:16px;">
+        <button onclick="saveLockerNumber()" style="width:100%;padding:12px;background:#007bff;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:bold;">Save</button>
+        <button onclick="closeLockerPopup()" style="width:100%;padding:12px;background:#444;color:white;border:none;margin-top:10px;border-radius:6px;cursor:pointer;">Cancel</button>
+    </div>
+</div>
+
+<div id="returnConfirmPopup" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);justify-content:center;align-items:center;z-index:310;">
+    <div style="background:#111;padding:20px;border-radius:12px;width:80%;max-width:300px;text-align:center;border:1px solid #444;">
+        <h3 style="margin-top:0;color:#ff3b3b;">Return Key?</h3>
+        <p id="returnConfirmText" style="font-size:14px; color:#aaa; margin:10px 0 20px 0; line-height:1.4;"></p>
+        <button onclick="confirmReleaseLocker()" style="width:100%;padding:12px;background:#b71c1c;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:bold;">Yes, Return</button>
+        <button onclick="closeReturnConfirmPopup()" style="width:100%;padding:12px;background:#444;color:white;border:none;margin-top:10px;border-radius:6px;cursor:pointer;">Cancel</button>
+    </div>
+</div>
+
+<div id="resetConfirmPopup" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);justify-content:center;align-items:center;z-index:320;">
+    <div style="background:#111;padding:25px;border-radius:12px;width:85%;max-width:340px;text-align:center;border:1px solid #ff3b3b;">
+        <h3 style="margin-top:0;color:#ff3b3b;font-size:20px;">🔄 Reset Day & Save?</h3>
+        <p style="font-size:14px; color:#ccc; margin:10px 0 20px 0; line-height:1.5;">Are you sure you want to save today's attendance history and clear all active members and lockers?</p>
+        <button onclick="confirmResetDay()" style="width:100%;padding:12px;background:#ff3b3b;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:bold;font-size:15px;">Yes, Save & Reset</button>
+        <button onclick="closeResetConfirmPopup()" style="width:100%;padding:12px;background:#444;color:white;border:none;margin-top:10px;border-radius:6px;cursor:pointer;">Cancel</button>
+    </div>
+</div>
+
+<div id="exportPopup" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);justify-content:center;align-items:center;z-index:330;">
+    <div style="background:#111;padding:20px;border-radius:12px;width:90%;max-width:400px;text-align:center;border:1px solid #4caf50;">
+        <h3 style="margin-top:0;color:#4caf50;font-size:18px;">📋 Attendance Data Generated</h3>
+        <p style="font-size:12px; color:#aaa; margin:5px 0 10px 0;">Acode limits downloading files directly. Copy the text below instead:</p>
+        <textarea id="exportTextArea" readonly style="width:100%; height:180px; background:#1e1e1e; color:#4caf50; border:1px solid #333; border-radius:6px; padding:10px; box-sizing:border-box; font-family:monospace; font-size:12px; resize:none; outline:none;"></textarea>
+        <button id="copyBtn" onclick="copyExportText()" style="width:100%;padding:12px;background:#4caf50;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:bold;font-size:15px;margin-top:15px;">📋 Copy Text</button>
+        <button onclick="document.getElementById('exportPopup').style.display='none'" style="width:100%;padding:12px;background:#444;color:white;border:none;margin-top:10px;border-radius:6px;cursor:pointer;">Close</button>
+    </div>
+</div>
+
+<script>
+let members = JSON.parse(localStorage.getItem("members") || "[]");
+let historyData = JSON.parse(localStorage.getItem("attendanceHistory") || "{}");
+let currentMemberId = null;
+let currentFilterStatus = null; 
+
+let needsUpdate = false;
+members.forEach((m, index) => {
+    if (!m.id) { m.id = Date.now() + index; needsUpdate = true; }
+    if (m.locker === undefined) { m.locker = null; needsUpdate = true; }
+});
+if (needsUpdate) localStorage.setItem("members", JSON.stringify(members));
+
+function save(){ localStorage.setItem("members", JSON.stringify(members)); localStorage.setItem("attendanceHistory", JSON.stringify(historyData)); updateStats(); }
+function toggleMenu(event){ if(event) event.stopPropagation(); let m = document.getElementById("menu"); let overlay = document.getElementById("menuOverlay"); if(m.style.display === "block") { closeMenu(); } else { m.style.display = "block"; overlay.style.display = "block"; } }
+function closeMenu(){ document.getElementById("menu").style.display = "none"; document.getElementById("menuOverlay").style.display = "none"; }
+function openPopup(){ closeMenu(); document.getElementById("popupTitle").innerText = "Add Member"; document.getElementById("name").value = ""; document.getElementById("date").value = ""; let btn = document.getElementById("popupButton"); btn.innerText = "Add"; btn.onclick = addMember; document.getElementById("popup").style.display = "flex"; }
+function closePopup(){ document.getElementById("popup").style.display = "none"; }
+function openOptionsPopup(id){ currentMemberId = id; let m = members.find(mem => mem.id === id); if(!m) return; document.getElementById("optionsTitle").innerText = m.name; document.getElementById("optionsPopup").style.display = "flex"; }
+function closeOptionsPopup(){ document.getElementById("optionsPopup").style.display = "none"; }
+function clearSearch(){ document.getElementById("search").value = ""; currentFilterStatus = null; render(); }
+function goHomeTab() { clearSearch(); }
+function addMember(){ let name = document.getElementById("name"); let date = document.getElementById("date"); if(!name.value || !date.value) return; members.push({id: Date.now(), name: name.value, date: date.value, active: false, lastActive: null, locker: null}); save(); name.value = ""; date.value = ""; closePopup(); render(); }
+function editSelected(){ closeOptionsPopup(); let m = members.find(mem => mem.id === currentMemberId); if(!m) return; document.getElementById("popupTitle").innerText = "Edit Member"; document.getElementById("name").value = m.name; document.getElementById("date").value = m.date; let btn = document.getElementById("popupButton"); btn.innerText = "Save Changes"; btn.onclick = saveEdit; document.getElementById("popup").style.display = "flex"; }
+function saveEdit(){ let name = document.getElementById("name").value; let date = document.getElementById("date").value; if(!name || !date) return; let index = members.findIndex(mem => mem.id === currentMemberId); if(index !== -1){ members[index].name = name; members[index].date = date; save(); render(); } closePopup(); }
+function deleteSelected(){ closeOptionsPopup(); let m = members.find(mem => mem.id === currentMemberId); if(!m) return; if(confirm(`Are you sure you want to completely delete ${m.name}?`)) { members = members.filter(mem => mem.id !== currentMemberId); save(); render(); } }
+function getStatus(date){ let today = new Date(); today.setHours(0,0,0,0); let end = new Date(date); end.setHours(0,0,0,0); let diff = (end - today) / (1000 * 60 * 60 * 24); if(diff < 0) return "red"; if(diff <= 7) return "orange"; return "green"; }
+function updateStats() { let allCount = members.length; let activeCount = members.filter(m => m.active).length; let expiringCount = members.filter(m => getStatus(m.date) === "orange").length; let expiredCount = members.filter(m => getStatus(m.date) === "red").length; document.getElementById("stat-all").innerText = allCount; document.getElementById("stat-active").innerText = activeCount; document.getElementById("stat-expiring").innerText = expiringCount; document.getElementById("stat-expired").innerText = expiredCount; }
+function filterByStatus(status) { if (currentFilterStatus === status) { currentFilterStatus = null; } else { currentFilterStatus = status; } render(); }
+function toggleMember(id){ let index = members.findIndex(m => m.id === id); if(index !== -1) { if(members[index].active){ members[index].active = false; members[index].lastActive = null; members[index].locker = null; } else { members[index].active = true; members[index].lastActive = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}); } save(); render(); } }
+function handleLongPressLocker(id) { let m = members.find(mem => mem.id === id); if(m && m.active) { currentMemberId = id; document.getElementById("lockerTitle").innerText = "Locker: " + m.name; document.getElementById("lockerInput").value = m.locker || ""; document.getElementById("lockerPopup").style.display = "flex"; setTimeout(() => document.getElementById("lockerInput").focus(), 50); } }
+function saveLockerNumber() { let lockerNum = document.getElementById("lockerInput").value; let index = members.findIndex(m => m.id === currentMemberId); if(index !== -1) { members[index].locker = lockerNum.trim() !== "" ? lockerNum.trim() : null; save(); render(); closeLockerPopup(); } }
+function closeLockerPopup() { document.getElementById("lockerPopup").style.display = "none"; }
+function releaseLocker(id, event) { if(event) event.stopPropagation(); let m = members.find(mem => mem.id === id); if(m) { currentMemberId = id; document.getElementById("returnConfirmText").innerText = `Empty locker and return key for ${m.name}?`; document.getElementById("returnConfirmPopup").style.display = "flex"; } }
+function confirmReleaseLocker() { let index = members.findIndex(m => m.id === currentMemberId); if(index !== -1) { members[index].locker = null; save(); render(); } closeReturnConfirmPopup(); }
+function closeReturnConfirmPopup() { document.getElementById("returnConfirmPopup").style.display = "none"; }
+function openResetConfirmPopup(){ closeMenu(); document.getElementById("resetConfirmPopup").style.display = "flex"; }
+function closeResetConfirmPopup(){ document.getElementById("resetConfirmPopup").style.display = "none"; }
+function confirmResetDay(){ let todayKey = new Date().toLocaleDateString('en-CA'); let activeMembers = members.filter(m => m.active); if (activeMembers.length > 0) { if (!historyData[todayKey]) historyData[todayKey] = []; activeMembers.forEach(am => { let exists = historyData[todayKey].find(hm => hm.id === am.id); if (!exists) { historyData[todayKey].push({ id: am.id, name: am.name, date: am.date, lastActive: am.lastActive }); } else { exists.lastActive = am.lastActive; } }); } members.forEach(m => { m.active = false; m.lastActive = null; m.locker = null; }); save(); currentFilterStatus = null; closeResetConfirmPopup(); render(); }
+function exportAttendance() { closeMenu(); let savedDates = Object.keys(historyData).sort((a, b) => new Date(b) - new Date(a)); if(savedDates.length === 0) { document.getElementById("exportTextArea").value = "No history records found."; document.getElementById("copyBtn").style.display = "none"; document.getElementById("exportPopup").style.display = "flex"; return; } let content = "--- RedX Gym Attendance History ---\n\n"; savedDates.forEach(date => { content += `Date: ${date}\n`; historyData[date].forEach(m => { content += `- ${m.name} (Expiry: ${m.date}) - Time: ${m.lastActive || "N/A"}\n`; }); content += "----------------------------\n"; }); document.getElementById("exportTextArea").value = content; document.getElementById("copyBtn").style.display = "block"; document.getElementById("copyBtn").innerText = "📋 Copy Text"; document.getElementById("exportPopup").style.display = "flex"; }
+function copyExportText() { let textArea = document.getElementById("exportTextArea"); textArea.select(); textArea.setSelectionRange(0, 99999); try { navigator.clipboard.writeText(textArea.value); document.getElementById("copyBtn").innerText = "✅ Copied Successfully!"; } catch (err) { document.execCommand('copy'); document.getElementById("copyBtn").innerText = "✅ Copied Successfully!"; } }
+function render(){ document.getElementById("grid").style.display = "grid"; document.getElementById("attendanceContainer").style.display = "none"; document.getElementById("searchWrap").style.display = "block"; document.getElementById("statsBar").style.display = "grid"; let grid = document.getElementById("grid"); let search = document.getElementById("search").value.toLowerCase(); grid.innerHTML = ""; let filtered = members.filter(m => { let matchesSearch = m.name.toLowerCase().includes(search); let matchesFilter = true; if (currentFilterStatus === 'active_now') { matchesFilter = m.active === true; } else if (currentFilterStatus) { matchesFilter = getStatus(m.date) === currentFilterStatus; } return matchesSearch && matchesFilter; }); filtered.forEach((m) => { let div = document.createElement("div"); div.className = "card"; let content = m.name; let currentStatus = getStatus(m.date); if(m.active){ div.classList.add(currentStatus); content += "<br><small style='font-weight:normal; opacity:0.8;'>" + m.date + "</small>"; if(m.locker) { content += `<br><span style='font-size:12px; background:#444; padding:2px 6px; border-radius:4px; display:inline-block; margin-top:4px;'>🔒 Locker: ${m.locker}</span>`; } } else { if(currentFilterStatus) { div.classList.add(currentStatus); content += "<br><small style='font-weight:normal; opacity:0.8;'>" + m.date + "</small>"; } } div.innerHTML = content; let optBtn = document.createElement("div"); optBtn.className = "card-options"; optBtn.innerText = "⋮"; optBtn.onpointerdown = function(e) { e.stopPropagation(); }; optBtn.onclick = function(e) { e.stopPropagation(); openOptionsPopup(m.id); }; div.appendChild(optBtn); if(m.active && m.locker) { let returnBtn = document.createElement("button"); returnBtn.className = "return-key-btn"; returnBtn.innerText = "↩️ Return Key"; returnBtn.onpointerdown = function(e) { e.stopPropagation(); }; returnBtn.onclick = function(e) { releaseLocker(m.id, e); }; div.appendChild(returnBtn); } let pressTimer; let isLongPress = false; div.onpointerdown = function(e) { if(e.target.className === "return-key-btn" || e.target.className === "card-options") return; isLongPress = false; pressTimer = setTimeout(() => { isLongPress = true; handleLongPressLocker(m.id); }, 500); }; div.onpointerup = function(e) { if(e.target.className === "return-key-btn" || e.target.className === "card-options") return; clearTimeout(pressTimer); if (!isLongPress) { toggleMember(m.id); } }; div.onpointerleave = function() { clearTimeout(pressTimer); }; div.onpointercancel = function() { clearTimeout(pressTimer); }; div.oncontextmenu = function(e) { e.preventDefault(); }; grid.appendChild(div); }); updateStats(); }
+function showAttendance(){ closeMenu(); document.getElementById("grid").style.display = "none"; document.getElementById("searchWrap").style.display = "none"; document.getElementById("statsBar").style.display = "none"; let container = document.getElementById("attendanceContainer"); container.style.display = "block"; container.innerHTML = "<h2 style='text-align:center; color:#ff3b3b;'>Attendance History</h2>"; let activeMembers = members.filter(m => m.active); if(activeMembers.length > 0) { container.innerHTML += "<div class='dateHeader'>🔥 Today (Active Now)</div>"; activeMembers.forEach(m => { let div = document.createElement("div"); div.className = "listItem"; let status = getStatus(m.date); div.innerHTML = `<div><b>${m.name}</b> ${m.locker ? `<span style='font-size:11px; background:#333; padding:2px 5px; border-radius:4px; margin-left:5px;'>🔒 ${m.locker}</span>` : ''}<br><span class="${status}Text" style="font-size:13px;">Expiry: ${m.date}</span></div><div style="color:#aaa; font-size:14px;">🕒 ${m.lastActive || ""}</div>`; container.appendChild(div); }); } let savedDates = Object.keys(historyData).sort((a, b) => new Date(b) - new Date(a)); if(savedDates.length === 0 && activeMembers.length === 0) { container.innerHTML += "<p style='text-align:center; color:#aaa;'>No records found.</p>"; return; } savedDates.forEach(date => { container.innerHTML += `<div class='dateHeader'>📅 Date: ${date}</div>`; historyData[date].forEach(m => { let div = document.createElement("div"); div.className = "listItem"; let status = getStatus(m.date); div.innerHTML = `<div><b>${m.name}</b><br><span class="${status}Text" style="font-size:13px;">Expiry: ${m.date}</span></div><div style="color:#aaa; font-size:14px;">🕒 ${m.lastActive || ""}</div>`; container.appendChild(div); }); }); }
+function backHome(){ closeMenu(); clearSearch(); }
+render();
+</script>
+
+</body>
+</html>
